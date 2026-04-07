@@ -9,6 +9,7 @@ from torch_scatter import scatter
 from torch_geometric.nn import MLP
 from torch_geometric.utils import to_dense_batch
 from ocpmodels.common.registry import registry
+from ocpmodels.datasets.embeddings import KHOT_EMBEDDINGS
 from ocpmodels.models.scn.smearing import GaussianSmearing
 from ocpmodels.common.utils import conditional_grad, _report_incompat_keys
 
@@ -49,11 +50,96 @@ def get_graph_encoder(name, kwargs):
         raise ValueError(f"Graph Encoder '{name}' not found!")
 
 
+def _build_token_batch(data, key):
+    """
+    Build per-token graph index for custom attributes (e.g. ads_pos).
+    Uses Batch._slice_dict when available, and falls back to a single graph.
+    """
+    value = getattr(data, key)
+    if not torch.is_tensor(value):
+        raise ValueError(f"{key} must be a tensor")
+
+    num_tokens = value.size(0)
+    if num_tokens == 0:
+        return torch.zeros(0, device=value.device, dtype=torch.long)
+
+    if hasattr(data, "_slice_dict") and key in data._slice_dict:
+        slices = data._slice_dict[key]
+        if torch.is_tensor(slices):
+            slices = slices.to(value.device)
+            counts = slices[1:] - slices[:-1]
+            return torch.repeat_interleave(
+                torch.arange(counts.numel(), device=value.device), counts
+            )
+
+    return torch.zeros(num_tokens, device=value.device, dtype=torch.long)
+
+
+class AdsGraphEncoder(nn.Module):
+    """
+    Adsorbate token encoder: atom embedding + position embedding + self-attention.
+    """
+
+    def __init__(
+        self,
+        hidden_dim: int = 128,
+        num_heads: int = 4,
+        num_layers: int = 2,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+
+        embeddings = KHOT_EMBEDDINGS
+        self.embedding = torch.zeros(100, len(embeddings[1]))
+        for i in range(100):
+            self.embedding[i] = torch.tensor(embeddings[i + 1])
+
+        self.atom_embedding = nn.Linear(len(embeddings[1]), hidden_dim)
+        self.pos_embedding = nn.Sequential(
+            nn.Linear(3, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.self_attns = nn.ModuleList(
+            [
+                MultiheadAttention(
+                    embed_dim=hidden_dim,
+                    num_heads=num_heads,
+                    dropout=dropout,
+                    batch_first=True,
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        self.norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, data):
+        ads_pos = data.ads_pos
+        ads_z = data.ads_atom_numb
+        if ads_z.dim() > 1:
+            ads_z = ads_z.view(-1)
+        ads_z = ads_z.long()
+
+        if self.embedding.device != ads_pos.device:
+            self.embedding = self.embedding.to(ads_pos.device)
+
+        ads_batch = _build_token_batch(data, "ads_pos")
+        x = self.embedding[ads_z - 1]
+        token_emb = self.atom_embedding(x) + self.pos_embedding(ads_pos)
+
+        dense, mask = to_dense_batch(token_emb, ads_batch)
+        for attn in self.self_attns:
+            out = attn(dense, dense, dense, key_padding_mask=~mask)
+            dense = self.norm(dense + out[0])
+        token_emb = dense[mask]
+        return token_emb, ads_batch
+
+
 class CrossModal(nn.Module):
     def __init__(
         self,
-        vec_emb_dim: int = 128,
-        node_emb_dim: int = 128,
+        vec_emb_dim: int = 128,  # kept for config compatibility
+        node_emb_dim: int = 128,  # kept for config compatibility
         hidden_dim: int = 128,
         out_channels: int = 1,
         num_gaussians: int = 50,
@@ -66,7 +152,6 @@ class CrossModal(nn.Module):
     ) -> None:
 
         super(CrossModal, self).__init__()
-        assert vec_emb_dim == node_emb_dim
         self.attn_layers = attn_layers
         self.mlp_layers = mlp_layers
 
@@ -76,12 +161,14 @@ class CrossModal(nn.Module):
             num_gaussians=num_gaussians,
         )
         self.fc_pos_exp = nn.Linear(num_gaussians, hidden_dim)
+        self.surf_proj = nn.Linear(node_emb_dim, hidden_dim)
+        self.ads_proj = nn.Linear(vec_emb_dim, hidden_dim)
 
-        # cross attention layers
-        self.cross_attns = nn.ModuleList(
+        # adsorbate -> surface cross attention
+        self.cross_attn_as = nn.ModuleList(
             [
                 MultiheadAttention(
-                    embed_dim=hidden_dim*2,
+                    embed_dim=hidden_dim,
                     num_heads=num_heads,
                     dropout=dropout,
                     batch_first=True,
@@ -89,9 +176,8 @@ class CrossModal(nn.Module):
                 for _ in range(attn_layers)
             ]
         )
-
-        # self attention layers
-        self.self_attns = nn.ModuleList(
+        # surface -> adsorbate cross attention
+        self.cross_attn_sa = nn.ModuleList(
             [
                 MultiheadAttention(
                     embed_dim=hidden_dim,
@@ -103,8 +189,33 @@ class CrossModal(nn.Module):
             ]
         )
 
+        self.self_attn_ads = nn.ModuleList(
+            [
+                MultiheadAttention(
+                    embed_dim=hidden_dim,
+                    num_heads=num_heads,
+                    dropout=dropout,
+                    batch_first=True,
+                )
+                for _ in range(attn_layers)
+            ]
+        )
+        self.self_attn_surf = nn.ModuleList(
+            [
+                MultiheadAttention(
+                    embed_dim=hidden_dim,
+                    num_heads=num_heads,
+                    dropout=dropout,
+                    batch_first=True,
+                )
+                for _ in range(attn_layers)
+            ]
+        )
+        self.norm_ads = nn.LayerNorm(hidden_dim)
+        self.norm_surf = nn.LayerNorm(hidden_dim)
+
         self.mlp = MLP(
-            in_channels=hidden_dim*4,
+            in_channels=hidden_dim * 2,
             hidden_channels=hidden_dim*2,
             out_channels=out_channels,
             num_layers=mlp_layers,
@@ -113,66 +224,82 @@ class CrossModal(nn.Module):
             norm=norm,
         )
 
-    def forward(self, vec_emb, node_emb, surface, need_weights=False):
+    def forward(self, ads_emb, node_emb, ads_batch, surface, need_weights=False):
 
-        # atom positional encodering along z direction
+        # atom positional encoding along z direction for surface atoms
         batch = surface.batch
         atom_h = atom_height(surface)
         node_pos_emb = self.node_pos_expansion(atom_h)
         node_pos_emb = self.fc_pos_exp(node_pos_emb)
 
-        # cross attention layers
-        graph_emb = scatter(node_emb, batch, dim=0, reduce='mean')
-        query = torch.cat([vec_emb, graph_emb], dim=1).unsqueeze(1)
-        key = torch.cat([node_emb, node_pos_emb], dim=1)
-        k_dense, mask = to_dense_batch(key, batch)
-        value = torch.cat([node_emb, graph_emb[batch]], dim=1)
-        v_dense, _ = to_dense_batch(value, batch)
+        surface_tokens = self.surf_proj(node_emb) + node_pos_emb
+        ads_tokens = self.ads_proj(ads_emb)
+        s_dense, s_mask = to_dense_batch(surface_tokens, batch)
+        a_dense, a_mask = to_dense_batch(ads_tokens, ads_batch)
 
+        # Cross attention: ads -> surface, and surface -> ads.
         cross_weights = []
-        for cross_attn in self.cross_attns:
-            cross_out = cross_attn(query, k_dense, v_dense, key_padding_mask=~mask,
-                                   need_weights=need_weights)
-            query = query + cross_out[0]
+        for attn_as, attn_sa in zip(self.cross_attn_as, self.cross_attn_sa):
+            out_as = attn_as(
+                a_dense,
+                s_dense,
+                s_dense,
+                key_padding_mask=~s_mask,
+                need_weights=need_weights,
+            )
+            out_sa = attn_sa(
+                s_dense,
+                a_dense,
+                a_dense,
+                key_padding_mask=~a_mask,
+                need_weights=False,
+            )
+
+            a_dense = self.norm_ads(a_dense + out_as[0])
+            s_dense = self.norm_surf(s_dense + out_sa[0])
             cross_weights.append(
-                self.get_attn_weights(cross_out, mask, batch))
-        h_attn1 = query.squeeze(1)
+                self.get_surface_weights(out_as, a_mask, s_mask)
+            )
 
-        # self attention layers
-        ads_emb = torch.cat(
-            [vec_emb.unsqueeze(1), graph_emb.unsqueeze(1)], dim=1
-        )
-        _mask = torch.ones(ads_emb.shape[:2]).bool().to(batch.device)
-        atom_top_emb = node_emb[atom_h > 0.8]
-        atom_top_batch = batch[atom_h > 0.8]
-        at_emb_dense, mask = to_dense_batch(atom_top_emb, atom_top_batch)
-        h = torch.cat([ads_emb, at_emb_dense], dim=1)
-        mask = torch.cat([_mask, mask], dim=1)
-
+        # Optional intra-graph refinement after cross conditioning.
         self_weights = []
-        for self_attn in self.self_attns:
-            self_out = self_attn(h, h, h, key_padding_mask=~mask,
-                                 need_weights=need_weights)
-            h = h + self_out[0]
-            # self_weights.append(self_out[1])
-        h_attn2 = torch.cat([h[:, 0, :], h[:, 1, :],], dim=1)
+        for attn_ads, attn_surf in zip(self.self_attn_ads, self.self_attn_surf):
+            out_ads = attn_ads(a_dense, a_dense, a_dense, key_padding_mask=~a_mask)
+            out_surf = attn_surf(s_dense, s_dense, s_dense, key_padding_mask=~s_mask)
+            a_dense = self.norm_ads(a_dense + out_ads[0])
+            s_dense = self.norm_surf(s_dense + out_surf[0])
+            if need_weights:
+                self_weights.append(out_ads[1])
 
-        h_attn = torch.cat([h_attn1, h_attn2], dim=1)
-        energy = self.mlp(h_attn).view(-1)
+        z_a = self.masked_mean(a_dense, a_mask)
+        z_s = self.masked_mean(s_dense, s_mask)
+        energy = self.mlp(torch.cat([z_a, z_s], dim=1)).view(-1)
 
         if need_weights:
             return energy, cross_weights, self_weights
         else:
             return energy
 
-    def get_attn_weights(self, attn_out, mask, batch):
+    def masked_mean(self, dense, mask):
+        mask_f = mask.unsqueeze(-1).float()
+        total = (dense * mask_f).sum(dim=1)
+        denom = mask_f.sum(dim=1).clamp_min(1.0)
+        return total / denom
+
+    def get_surface_weights(self, attn_out, ads_mask, surface_mask):
         out = []
         if attn_out[1] is None:
             return out
-
-        attn_out = attn_out[1].squeeze(1)[mask]
-        for i in range(mask.size(0)):
-            out.append(attn_out[batch == i])
+        # attn_out[1]: [B, n_ads_tokens, n_surface_tokens]
+        attn_w = attn_out[1]
+        for i in range(attn_w.size(0)):
+            valid_ads = ads_mask[i]
+            valid_surface = surface_mask[i]
+            if valid_ads.sum() == 0:
+                out.append(torch.zeros(valid_surface.sum(), device=attn_w.device))
+                continue
+            sample_weights = attn_w[i][valid_ads][:, valid_surface].mean(dim=0)
+            out.append(sample_weights)
         return out
 
 
@@ -193,6 +320,7 @@ class AdsMT_ARCH(nn.Module):
         freeze_nblock: int = 0,
         graph_encoder: str = 'adsgt',
         graph_encoder_args: dict = None,
+        ads_encoder_args: dict = None,
         desc_layers: int = 1,
         desc_hidden_dim: int = 128,
         cross_modal_args: dict = None,
@@ -203,12 +331,17 @@ class AdsMT_ARCH(nn.Module):
         self.otf_graph = True
         self.regress_forces = False
 
-        # graph encoder for surface graph
-        self.graph_encoder = get_graph_encoder(graph_encoder, graph_encoder_args)
+        # graph encoder for surface graph.
+        self.surface_encoder = get_graph_encoder(graph_encoder, graph_encoder_args)
 
-        # vector encoder for adsorbate descriptors
-        self.vector_encoder = MLP(in_channels=208, hidden_channels=desc_hidden_dim,
-                                  out_channels=desc_hidden_dim, num_layers=desc_layers)
+        if ads_encoder_args is None:
+            ads_encoder_args = {
+                "hidden_dim": desc_hidden_dim,
+                "num_layers": max(desc_layers, 1),
+                "num_heads": cross_modal_args.get("num_heads", 4) if cross_modal_args else 4,
+                "dropout": cross_modal_args.get("dropout", 0.0) if cross_modal_args else 0.0,
+            }
+        self.ads_encoder = AdsGraphEncoder(**ads_encoder_args)
 
         # cross-modal encoder for fusing the embeddings of surface graph and adsorbate descriptors
         self.cross_encoder = CrossModal(**cross_modal_args)
@@ -224,15 +357,16 @@ class AdsMT_ARCH(nn.Module):
     @conditional_grad(torch.enable_grad())
     def forward(self, data, need_weights=False):
 
-        node_emb = self.graph_encoder(data)
-        vec_emb = self.vector_encoder(data.ads_des)
+        node_emb = self.surface_encoder(data)
+        ads_emb, ads_batch = self.ads_encoder(data)
 
         if need_weights:
             energy, cross_weights, self_weights = self.cross_encoder(
-                vec_emb, node_emb, data, need_weights)
+                ads_emb, node_emb, ads_batch, data, need_weights
+            )
             return energy, cross_weights, self_weights
         else:
-            energy = self.cross_encoder(vec_emb, node_emb, data)
+            energy = self.cross_encoder(ads_emb, node_emb, ads_batch, data)
             return energy
 
     def from_pretrain_ckpt(self, ckpt_path):
@@ -267,14 +401,14 @@ class AdsMT_ARCH(nn.Module):
 
     def freeze_layers(self, ge_name, nblock=0):
         frozen_layers = frozen_layer_name[ge_name]
-        for name, child in self.graph_encoder.named_children():
+        for name, child in self.surface_encoder.named_children():
             if name not in frozen_layers:
                 continue
             for param in child.parameters():
                 param.requires_grad = False
 
         for _name in conv_name[ge_name]:
-            conv_layers = getattr(self.graph_encoder, _name)
+            conv_layers = getattr(self.surface_encoder, _name)
             for i in range(nblock):
                 for param in conv_layers[i].parameters():
                     param.requires_grad = False

@@ -1,0 +1,152 @@
+2026-04-07 15:47:00 (INFO): No.0 run begins
+2026-04-07 15:47:00 (INFO): Project root: /Users/megumi/Study document/code/adsmodel/src/ocp-models
+2026-04-07 15:47:01 (INFO): amp: false
+cmd:
+  checkpoint_dir: ./checkpoints/2026-04-07-15-47-12-train_datasets/CHO2-GMAE_adsgt
+  commit: 9bc93735
+  identifier: train_datasets/CHO2-GMAE_adsgt
+  logs_dir: ./logs/tensorboard/2026-04-07-15-47-12-train_datasets/CHO2-GMAE_adsgt
+  print_every: 10
+  results_dir: ./results/2026-04-07-15-47-12-train_datasets/CHO2-GMAE_adsgt
+  seed: 0
+  timestamp_id: 2026-04-07-15-47-12-train_datasets/CHO2-GMAE_adsgt
+dataset:
+  normalize_labels: true
+  src: datasets/CHO2-GMAE/data.lmdb
+gpus: 0
+logger: tensorboard
+model: adsmt_arch
+model_attributes:
+  ads_encoder_args:
+    dropout: 0.0
+    hidden_dim: 128
+    num_heads: 4
+    num_layers: 2
+  cross_modal_args:
+    act: silu
+    attn_layers: 1
+    dropout: 0.0
+    hidden_dim: 128
+    mlp_layers: 3
+    node_emb_dim: 128
+    num_gaussians: 100
+    num_heads: 4
+    out_channels: 1
+    vec_emb_dim: 128
+  desc_hidden_dim: 128
+  desc_layers: 2
+  graph_encoder: adsgt
+  graph_encoder_args:
+    conv_layers: 3
+    cutoff: 8.0
+    edge_features: 128
+    max_neighbors: 12
+    node_features: 128
+    node_layer_head: 8
+  otf_graph: true
+  regress_forces: false
+  use_pbc: true
+noddp: false
+optim:
+  batch_size: 64
+  eval_batch_size: 64
+  factor: 0.7
+  lr_initial: 0.001
+  max_epochs: 200
+  mode: min
+  num_workers: 0
+  patience: 10
+  scheduler: ReduceLROnPlateau
+slurm: {}
+task:
+  dataset: single_point_lmdb
+  labels:
+  - relaxed energy
+  metric: mae
+  type: regression
+trainer: energy
+
+2026-04-07 15:47:01 (INFO): Batch balancing is disabled for single GPU training.
+2026-04-07 15:47:01 (INFO): Batch balancing is disabled for single GPU training.
+2026-04-07 15:47:01 (INFO): Batch balancing is disabled for single GPU training.
+2026-04-07 15:47:03 (INFO): Loading dataset: single_point_lmdb
+2026-04-07 15:47:03 (INFO): Loading model: adsmt_arch
+2026-04-07 15:47:03 (INFO): Loaded AdsMT_ARCH with 3282049 parameters.
+2026-04-07 15:47:03 (WARNING): Model gradient logging to tensorboard not yet supported.
+2026-04-07 15:47:21 (INFO): energy_mae: 1.26e+00, energy_mse: 2.49e+00, energy_within_threshold: 3.12e-02, success_rate: 7.81e-02, loss: 6.65e-01, lr: 1.00e-03, epoch: 1.04e-01, step: 1.00e+01
+2026-04-07 15:47:37 (INFO): energy_mae: 1.29e+00, energy_mse: 2.63e+00, energy_within_threshold: 0.00e+00, success_rate: 1.56e-02, loss: 6.81e-01, lr: 1.00e-03, epoch: 2.08e-01, step: 2.00e+01
+2026-04-07 15:47:52 (INFO): energy_mae: 1.13e+00, energy_mse: 2.43e+00, energy_within_threshold: 1.56e-02, success_rate: 6.25e-02, loss: 5.95e-01, lr: 1.00e-03, epoch: 3.12e-01, step: 3.00e+01
+2026-04-07 15:48:08 (INFO): energy_mae: 1.10e+00, energy_mse: 2.15e+00, energy_within_threshold: 1.56e-02, success_rate: 1.09e-01, loss: 5.80e-01, lr: 1.00e-03, epoch: 4.17e-01, step: 4.00e+01
+2026-04-07 15:48:24 (INFO): energy_mae: 1.20e+00, energy_mse: 2.86e+00, energy_within_threshold: 3.12e-02, success_rate: 7.81e-02, loss: 6.33e-01, lr: 1.00e-03, epoch: 5.21e-01, step: 5.00e+01
+2026-04-07 15:48:44 (INFO): energy_mae: 8.93e-01, energy_mse: 1.12e+00, energy_within_threshold: 0.00e+00, success_rate: 6.25e-02, loss: 4.72e-01, lr: 1.00e-03, epoch: 6.25e-01, step: 6.00e+01
+2026-04-07 15:49:03 (INFO): energy_mae: 1.07e+00, energy_mse: 1.53e+00, energy_within_threshold: 0.00e+00, success_rate: 1.56e-02, loss: 5.64e-01, lr: 1.00e-03, epoch: 7.29e-01, step: 7.00e+01
+2026-04-07 15:49:22 (INFO): energy_mae: 8.54e-01, energy_mse: 1.52e+00, energy_within_threshold: 3.12e-02, success_rate: 1.25e-01, loss: 4.51e-01, lr: 1.00e-03, epoch: 8.33e-01, step: 8.00e+01
+2026-04-07 15:49:41 (INFO): energy_mae: 6.11e-01, energy_mse: 6.20e-01, energy_within_threshold: 0.00e+00, success_rate: 6.25e-02, loss: 3.23e-01, lr: 1.00e-03, epoch: 9.38e-01, step: 9.00e+01
+2026-04-07 15:49:51 (INFO): Evaluating on val.
+device 0:   0%|          | 0/12 [00:00<?, ?it/s]device 0:   8%|▊         | 1/12 [00:00<00:09,  1.10it/s]device 0:  17%|█▋        | 2/12 [00:01<00:08,  1.16it/s]device 0:  25%|██▌       | 3/12 [00:02<00:06,  1.43it/s]device 0:  33%|███▎      | 4/12 [00:03<00:06,  1.30it/s]device 0:  42%|████▏     | 5/12 [00:04<00:05,  1.17it/s]device 0:  50%|█████     | 6/12 [00:05<00:05,  1.00it/s]device 0:  58%|█████▊    | 7/12 [00:06<00:05,  1.00s/it]device 0:  67%|██████▋   | 8/12 [00:07<00:04,  1.02s/it]device 0:  75%|███████▌  | 9/12 [00:08<00:02,  1.13it/s]device 0:  83%|████████▎ | 10/12 [00:08<00:01,  1.11it/s]device 0:  92%|█████████▏| 11/12 [00:09<00:00,  1.12it/s]device 0: 100%|██████████| 12/12 [00:10<00:00,  1.11it/s]device 0: 100%|██████████| 12/12 [00:10<00:00,  1.11it/s]
+2026-04-07 15:50:02 (INFO): energy_mae: 0.6625, energy_mse: 0.9927, energy_within_threshold: 0.0261, success_rate: 0.1359, loss: 0.3501, epoch: 1.0000
+2026-04-07 15:50:02 (INFO): Evaluating on test.
+device 0:   0%|          | 0/12 [00:00<?, ?it/s]device 0:   8%|▊         | 1/12 [00:00<00:09,  1.17it/s]device 0:  17%|█▋        | 2/12 [00:01<00:10,  1.01s/it]device 0:  25%|██▌       | 3/12 [00:03<00:10,  1.12s/it]device 0:  33%|███▎      | 4/12 [00:04<00:08,  1.03s/it]device 0:  42%|████▏     | 5/12 [00:05<00:07,  1.02s/it]device 0:  50%|█████     | 6/12 [00:06<00:06,  1.01s/it]device 0:  58%|█████▊    | 7/12 [00:07<00:04,  1.00it/s]device 0:  67%|██████▋   | 8/12 [00:07<00:03,  1.06it/s]device 0:  75%|███████▌  | 9/12 [00:08<00:02,  1.10it/s]device 0:  83%|████████▎ | 10/12 [00:09<00:01,  1.15it/s]device 0:  92%|█████████▏| 11/12 [00:10<00:00,  1.13it/s]device 0: 100%|██████████| 12/12 [00:11<00:00,  1.13it/s]device 0: 100%|██████████| 12/12 [00:11<00:00,  1.06it/s]
+2026-04-07 15:50:14 (INFO): energy_mae: 0.6292, energy_mse: 0.8684, energy_within_threshold: 0.0235, success_rate: 0.1190, loss: 0.3323, epoch: 1.0000
+2026-04-07 15:50:21 (INFO): energy_mae: 5.18e-01, energy_mse: 5.23e-01, energy_within_threshold: 7.81e-02, success_rate: 2.66e-01, loss: 2.74e-01, lr: 1.00e-03, epoch: 1.04e+00, step: 1.00e+02
+2026-04-07 15:50:39 (INFO): energy_mae: 5.90e-01, energy_mse: 1.01e+00, energy_within_threshold: 1.56e-02, success_rate: 1.72e-01, loss: 3.12e-01, lr: 1.00e-03, epoch: 1.15e+00, step: 1.10e+02
+2026-04-07 15:50:58 (INFO): energy_mae: 7.17e-01, energy_mse: 1.60e+00, energy_within_threshold: 3.12e-02, success_rate: 1.25e-01, loss: 3.79e-01, lr: 1.00e-03, epoch: 1.25e+00, step: 1.20e+02
+2026-04-07 15:51:19 (INFO): energy_mae: 4.67e-01, energy_mse: 5.11e-01, energy_within_threshold: 3.12e-02, success_rate: 1.72e-01, loss: 2.47e-01, lr: 1.00e-03, epoch: 1.35e+00, step: 1.30e+02
+2026-04-07 15:51:38 (INFO): energy_mae: 6.46e-01, energy_mse: 8.60e-01, energy_within_threshold: 0.00e+00, success_rate: 1.09e-01, loss: 3.41e-01, lr: 1.00e-03, epoch: 1.46e+00, step: 1.40e+02
+2026-04-07 15:52:00 (INFO): energy_mae: 6.09e-01, energy_mse: 7.24e-01, energy_within_threshold: 1.56e-02, success_rate: 9.38e-02, loss: 3.22e-01, lr: 1.00e-03, epoch: 1.56e+00, step: 1.50e+02
+2026-04-07 15:52:19 (INFO): energy_mae: 5.92e-01, energy_mse: 7.23e-01, energy_within_threshold: 4.69e-02, success_rate: 1.72e-01, loss: 3.12e-01, lr: 1.00e-03, epoch: 1.67e+00, step: 1.60e+02
+2026-04-07 15:52:39 (INFO): energy_mae: 6.01e-01, energy_mse: 7.23e-01, energy_within_threshold: 3.12e-02, success_rate: 1.56e-01, loss: 3.17e-01, lr: 1.00e-03, epoch: 1.77e+00, step: 1.70e+02
+2026-04-07 15:52:58 (INFO): energy_mae: 4.15e-01, energy_mse: 3.51e-01, energy_within_threshold: 4.69e-02, success_rate: 2.03e-01, loss: 2.19e-01, lr: 1.00e-03, epoch: 1.88e+00, step: 1.80e+02
+2026-04-07 15:53:18 (INFO): energy_mae: 5.05e-01, energy_mse: 8.77e-01, energy_within_threshold: 7.81e-02, success_rate: 1.72e-01, loss: 2.67e-01, lr: 1.00e-03, epoch: 1.98e+00, step: 1.90e+02
+2026-04-07 15:53:22 (INFO): Evaluating on val.
+device 0:   0%|          | 0/12 [00:00<?, ?it/s]device 0:   8%|▊         | 1/12 [00:00<00:09,  1.12it/s]device 0:  17%|█▋        | 2/12 [00:01<00:08,  1.17it/s]device 0:  25%|██▌       | 3/12 [00:02<00:06,  1.42it/s]device 0:  33%|███▎      | 4/12 [00:03<00:06,  1.27it/s]device 0:  42%|████▏     | 5/12 [00:04<00:05,  1.17it/s]device 0:  50%|█████     | 6/12 [00:05<00:06,  1.00s/it]device 0:  58%|█████▊    | 7/12 [00:06<00:04,  1.00it/s]device 0:  67%|██████▋   | 8/12 [00:07<00:04,  1.02s/it]device 0:  75%|███████▌  | 9/12 [00:08<00:02,  1.14it/s]device 0:  83%|████████▎ | 10/12 [00:08<00:01,  1.12it/s]device 0:  92%|█████████▏| 11/12 [00:09<00:00,  1.12it/s]device 0: 100%|██████████| 12/12 [00:10<00:00,  1.11it/s]device 0: 100%|██████████| 12/12 [00:10<00:00,  1.11it/s]
+2026-04-07 15:53:32 (INFO): energy_mae: 0.6009, energy_mse: 0.9262, energy_within_threshold: 0.0275, success_rate: 0.1281, loss: 0.3173, epoch: 2.0000
+2026-04-07 15:53:32 (INFO): Evaluating on test.
+device 0:   0%|          | 0/12 [00:00<?, ?it/s]device 0:   8%|▊         | 1/12 [00:00<00:09,  1.16it/s]device 0:  17%|█▋        | 2/12 [00:01<00:09,  1.02it/s]device 0:  25%|██▌       | 3/12 [00:03<00:10,  1.12s/it]device 0:  33%|███▎      | 4/12 [00:04<00:08,  1.02s/it]device 0:  42%|████▏     | 5/12 [00:05<00:07,  1.02s/it]device 0:  50%|█████     | 6/12 [00:06<00:06,  1.01s/it]device 0:  58%|█████▊    | 7/12 [00:07<00:05,  1.01s/it]device 0:  67%|██████▋   | 8/12 [00:07<00:03,  1.06it/s]device 0:  75%|███████▌  | 9/12 [00:08<00:02,  1.11it/s]device 0:  83%|████████▎ | 10/12 [00:09<00:01,  1.15it/s]device 0:  92%|█████████▏| 11/12 [00:10<00:00,  1.13it/s]device 0: 100%|██████████| 12/12 [00:11<00:00,  1.10it/s]device 0: 100%|██████████| 12/12 [00:11<00:00,  1.06it/s]
+2026-04-07 15:53:44 (INFO): energy_mae: 0.5871, energy_mse: 0.8941, energy_within_threshold: 0.0275, success_rate: 0.1503, loss: 0.3102, epoch: 2.0000
+2026-04-07 15:53:59 (INFO): energy_mae: 4.73e-01, energy_mse: 4.41e-01, energy_within_threshold: 0.00e+00, success_rate: 1.72e-01, loss: 2.50e-01, lr: 1.00e-03, epoch: 2.08e+00, step: 2.00e+02
+2026-04-07 15:54:17 (INFO): energy_mae: 3.91e-01, energy_mse: 2.95e-01, energy_within_threshold: 4.69e-02, success_rate: 2.34e-01, loss: 2.07e-01, lr: 1.00e-03, epoch: 2.19e+00, step: 2.10e+02
+Traceback (most recent call last):
+  File "/Users/megumi/Study document/code/dbadsmodel/main.py", line 64, in <module>
+    runner_out = Runner()(config)
+  File "/Users/megumi/Study document/code/dbadsmodel/main.py", line 28, in __call__
+    self.task.run()
+  File "/Users/megumi/Study document/code/adsmodel/src/ocp-models/ocpmodels/tasks/task.py", line 51, in run
+    self.trainer.train(
+  File "/Users/megumi/Study document/code/dbadsmodel/trainer/ads_trainer.py", line 238, in train
+    out = self._forward(batch)
+  File "/Users/megumi/Study document/code/adsmodel/src/ocp-models/ocpmodels/trainers/energy_trainer.py", line 304, in _forward
+    output = self.model(batch_list)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/Users/megumi/Study document/code/adsmodel/src/ocp-models/ocpmodels/common/data_parallel.py", line 64, in forward
+    return self.module(batch_list[0])
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/Users/megumi/Study document/code/adsmodel/src/ocp-models/ocpmodels/common/utils.py", line 135, in cls_method
+    return f(self, *args, **kwargs)
+  File "/Users/megumi/Study document/code/dbadsmodel/models/adsmt_arch.py", line 360, in forward
+    node_emb = self.surface_encoder(data)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/Users/megumi/Study document/code/adsmodel/src/ocp-models/ocpmodels/common/utils.py", line 135, in cls_method
+    return f(self, *args, **kwargs)
+  File "/Users/megumi/Study document/code/dbadsmodel/models/encoders/adsgt/adsgt.py", line 81, in forward
+    node_features = att_layer(node_features, edge_index, edge_features)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/Users/megumi/Study document/code/dbadsmodel/models/encoders/adsgt/layers.py", line 186, in forward
+    out = self.propagate(edge_index, query=query, key=key, value=value,
+  File "/var/folders/fn/9wp6qq7909n1fcj9c02c0th40000gn/T/models.encoders.adsgt.layers_AdsGTAttn_propagate_g0cs7c8p.py", line 277, in propagate
+    out = self.message(
+  File "/Users/megumi/Study document/code/dbadsmodel/models/encoders/adsgt/layers.py", line 236, in message
+    out = self.msg_layer(out)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/container.py", line 204, in forward
+    input = module(input)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/opt/anaconda3/envs/adsmt/lib/python3.9/site-packages/torch/nn/modules/linear.py", line 114, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt

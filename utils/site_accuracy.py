@@ -4,8 +4,16 @@ import torch
 
 def get_sites(data, correct=True):
     weights = data.cross_weights
-    if correct and 'tags' in data.keys:
-        weights[data.tags == 0] = 0.0
+    tags = None
+
+    keys = data.keys() if callable(getattr(data, "keys", None)) else data.keys
+    if "tags" in keys:
+        tags = data.tags
+    elif "gmae_tags" in keys:
+        tags = data.gmae_tags
+
+    if correct and tags is not None:
+        weights[tags == 0] = 0.0
         weights = weights / weights.sum()
     sorted, indices = torch.sort(weights, descending=True)
     best_site = [indices[0].item()]
