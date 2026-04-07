@@ -1,1 +1,0 @@
-from .adsgt import AdsGT
